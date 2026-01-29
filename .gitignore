@@ -1,0 +1,30 @@
+# General
+.DS_Store
+.idea/
+.vscode/
+
+# Python / Django
+backend/venv/
+backend/__pycache__/
+*.py[cod]
+backend/db.sqlite3
+backend/media/
+backend/staticfiles/
+backend/.env
+
+# Node / React
+portal/node_modules/
+portal/dist/
+portal/.env
+
+# Flutter
+mobile/build/
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.pub-cache/
+mobile/pubspec.lock
+mobile/ios/Flutter/Generated.xcconfig
+mobile/ios/Flutter/flutter_export_environment.sh
+mobile/android/.gradle
+mobile/android/local.properties
