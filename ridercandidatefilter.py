@@ -1,19 +1,25 @@
 
-available_drivers = [] #list of available drivers
+nearbyDrivers = [] #list of available drivers
 order_id= 0 #order id for the order to be assigned to a driver  
 
-
-
+# a class to filter and assign drivers to rider orders
 class RiderCandidateFilter:
 
     # the initiator 
-    def __init__(self,available_drivers, order_id,timestamp):
-        self.available_drivers = available_drivers
+    def __init__(self,nearbyDrivers, order_id,timestamp):
+        self.nearbyDrivers = nearbyDrivers
         self.order_id = order_id
 
 # function to build candidate list of drivers for the order
-    def build_candidate_list(self, order):
-        pass
+    def build_candidate_list(self, nearbyDrivers):
+        #instantiated available drivers list so that from the list we can filter out drivers that are not eligible
+
+        candidate_list = []
+        for driver in nearbyDrivers:
+            #logic to filter drivers based on certain criteria
+            if 
+
+            candidate_list.append(driver)
 
 #function haversineMeters to calculate the distance between two points given their latitude and longitude
     def haversineMeters(self, lat1, lon1, lat2, lon2):
