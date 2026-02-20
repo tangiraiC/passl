@@ -1,4 +1,14 @@
+#Purpose: Non-routing hard eligibility filtering (rule gates).
+#Builds the base candidate set before routing/scoring.
+#Typical responsibilities:
+#online/available
+#capacity / current workload
+#verification/compliance
+#vehicle type compatibility
+#service zone membership
+#cooldowns, bans, suspensions
 
+#Output: “rule-qualified riders” (still not ranked).
 nearbyDrivers = [] #list of available drivers
 order_id= 0 #order id for the order to be assigned to a driver  
 driverStatus = ["available", "transittoCollect",
@@ -28,9 +38,14 @@ class RiderCandidateFilter:
 
 #function that uses OSRM (Open Source Routing Machine)
 # to calculate the distance and time from the driver to the pickup 
-# location and from the pickup location to the dropoff location
+# location and from the pickup location to the dropoff location ,
+# the functions also can  geofence the pickup and dropoff locations to ensure they are within serviceable areas
     def calculate_distance_and_time(self, driver, pickup_location, dropoff_location):
-        pass
+        #the geofencing to check if the driver is within the serviceable area
+
+        #we need to calculate the drivers within a certain distance from the pick up location 
+        
+
     
 
 #function to check if rider is allowed in the zone
