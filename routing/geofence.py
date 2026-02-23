@@ -29,8 +29,8 @@ class GeofenceCandidate:
     """
 
     rider_id: str
-    pickup_distance_m: float # in meters
-    pickup_duration_s: float # in seconds
+    pickup_distance_m: float # in meters -  from where rider is to pickup point
+    pickup_duration_s: float # in seconds - from where rider is to pickup point
     dropoff_distance_m: float
     dropoff_duration_s: float 
     total_distance_m: float
@@ -71,7 +71,7 @@ def geofence_candidates(
         return []
 
     #Precompute dropoff -> rider distances/durations for later use in candidate construction
-    delivery = osrm.compute_route([pickup, dropoff])
+    delivery = osrm.compute_route([pickup, dropoff]) #tot be transefered to othe file
     dropoff_distance_m = delivery["distance"]   # or "distance" depending on your OSRMClient
     dropoff_duration_s = delivery["duration"]   # or "duration"
 
@@ -85,7 +85,7 @@ def geofence_candidates(
         destinations = [(r.lat, r.lon) for r in batch] #list of (lat, lon) for OSRM table
 
         #one osrm call to get pickup -> each rider distance/duration
-        matrix = matrix = osrm.compute_table(sources=[pickup], destinations=destinations) #returns dict with 'distances' and 'durations' lists
+        matrix = osrm.compute_table(sources=[pickup], destinations=destinations) #returns dict with 'distances' and 'durations' lists
 
         durations = matrix["durations"] #list of durations from pickup to each rider
         distances = matrix["distances"] #list of distances from pickup to each rider

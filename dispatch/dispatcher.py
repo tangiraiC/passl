@@ -9,3 +9,8 @@
 #If top rider declines → try next
 #Stop conditions
 #This is the file that implements the “dispatch loop” logic, while other files provide reusable primitives
+
+
+#dediaceted riders for some orders 
+ #if yes - we can skip geofence and directly score them (assuming they are always eligible)
+# if order has many riders dedicated
