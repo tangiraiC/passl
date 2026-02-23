@@ -7,6 +7,7 @@
 #from .eta_service import estimate_eta   
 from .osrm_client import OSRMClient
 from .geofence import geofence_candidates
+from .matrix_adapter import time_matrix_provider_from_osrm_client
 
 __all__ = [
            "estimate_eta", 
@@ -14,4 +15,5 @@ __all__ = [
              "road_geofence",
              "compute_route",
              "routeResult",
+             "time_matrix_provider_from_osrm_client",
              ]

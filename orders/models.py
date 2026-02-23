@@ -19,17 +19,17 @@ from __future__ import annotations
 from dataclasses import dataclass,field 
 from enum import Enum
 from typing import List, Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 
-Latlon = Tuple[float, float]
+LatLon = Tuple[float, float]
 
 class OrderStatus(Enum):
     RAW = "RAW"
     BATCHING = "BATCHING"
     READY = "READY"
-    ASSIGNED = "ASSIGNED"
-    CANCELLED = "CANCELLED"
+    ASSIGNED = "ASSIGNED" # optional
+    CANCELLED = "CANCELLED" # optional
 
 class JobType(Enum):
     SINGLE = "SINGLE"
@@ -49,7 +49,7 @@ class Stop:
 
     stop_type : StopType
     order_id : str
-    coordinates : LatLon
+    coord : LatLon
     pickup_id : Optional[str] = None
 
 @dataclass
@@ -59,11 +59,11 @@ class Order:
     """
 
     id: str
-    pickup_coordinates: Latlon
-    dropoff_coordinates: Latlon
+    pickup: LatLon
+    dropoff: LatLon
     pickup_id: Optional[str] = None
     
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     ready_at: Optional[datetime] = None
 
     status : OrderStatus = OrderStatus.RAW
@@ -86,15 +86,15 @@ class Job:
     detour_factor : Optional[float] = None  # Ratio of actual route distance to direct distance
     savings_percentage : Optional[float] = None  # Percentage of distance/time saved compared to separate trips
 
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
-    @staticmethod # Factory method to create a Job from a list of Orders and a stop sequence
-    def new(job_type: JobType, orders: List[Order], stop_sequence: List[Stop]) -> Job:
+    @staticmethod # Factory method to create a Job from order ids and a stop sequence
+    def new(job_type: JobType, order_ids: List[str], stops: List[Stop]) -> Job:
         #uuid for unique job id generation
         return Job(
             job_id=str(uuid.uuid4()),
             job_type=job_type,
-            order_ids=[order.id for order in orders],
-            stops=stop_sequence
+            order_ids=order_ids,
+            stops=stops,
         )
 

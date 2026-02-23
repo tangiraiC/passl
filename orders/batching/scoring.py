@@ -38,7 +38,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 
-from ..models import Job, JobType, Order, Stop
+from ..models import Job, JobType, Order, Stop, StopType
 from .feasibility import (
     FeasibilityResult,
     TimeMatrixProvider,
@@ -130,6 +130,13 @@ def score_and_select_jobs(
     for c in selected_pairs:
         jobs.append(_candidate_to_job(c, JobType.BATCH_2))
     for o in leftovers:
+        # Check rolling horizon: defer if young
+        age = order_age_seconds.get(o.id, 0.0) if order_age_seconds else 0.0
+        
+        if policy.enable_rolling_horizon and age < policy.max_wait_time_seconds:
+            # DEFER: Do not create a job. 
+            continue 
+            
         jobs.append(_single_job(o))
 
     return jobs
@@ -176,6 +183,15 @@ def _build_pair_candidates(
                 continue
 
             detour = feas.best_time_seconds / single_sum
+            
+            print(
+                "PAIR DEBUG",
+                o1.id, o2.id,
+                "batch_time", feas.best_time_seconds,
+                "single_sum", single_sum,
+                "ratio", feas.best_time_seconds / single_sum
+            )
+
             if detour > policy.pair_detour_cap:
                 continue
 
@@ -364,9 +380,9 @@ def _select_disjoint_greedy(candidates: List[CandidateBundle]) -> List[Candidate
 
 def _candidate_to_job(candidate: CandidateBundle, job_type: JobType) -> Job:
     job = Job.new(job_type=job_type, order_ids=list(candidate.order_ids), stops=candidate.stops)
-    job.eta_seconds = candidate.batch_time_seconds
-    job.detour_ratio = candidate.detour_ratio
-    job.savings_seconds = candidate.savings_seconds
+    job.eta = candidate.batch_time_seconds
+    job.detour_factor = candidate.detour_ratio
+    job.savings_percentage = candidate.savings_seconds
     return job
 
 

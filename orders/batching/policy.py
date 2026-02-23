@@ -77,6 +77,11 @@ class BatchingPolicy:
     # Hard wait: after this, finalize as single if still unbatched.
     batching_hard_wait_sec: int = 600  # 10 minutes
 
+    # --- Rolling Horizon ---
+    # Defer singles from dispatching if they haven't waited this long.
+    enable_rolling_horizon: bool = True
+    max_wait_time_seconds: int = 180  # 3 minutes
+
     # --- Optional SLA guards (if you track deadlines) ---
     # If you later add promised delivery windows, you can enable these checks in feasibility/scoring.
     enforce_sla: bool = False
