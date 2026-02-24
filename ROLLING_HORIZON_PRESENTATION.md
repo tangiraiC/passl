@@ -75,6 +75,16 @@ Instead of hardcoding limits into the scoring logic, they are exposed here for e
 **This is where the rolling horizon physically executes.**
 * The engine picks a seed order and dynamically tests inserting every unbatched order into it, permanently attaching the one that results in the highest positive savings vs a baseline detour.
 * It loops this continuously until `max_batch_size` (e.g. 10) is hit or all valid mathematical options are exhausted.
+
+**Scoring Mathematics:**
+To decide which insertion is best, the engine calculates the quality of a match using these formulas:
+
+$$ \text{Detour Ratio} = \frac{\text{Total Time of the Batch Route}}{\text{Sum of Individual Route Times}} $$
+
+$$ \text{Savings (seconds)} = (\text{Time of A} + \text{Time of B}) - \text{Time of the Batch Route} $$
+
+$$ \text{Final Score} = \text{Savings} + (\text{Age Weight} \times \text{Seconds Order Has Waited}) $$
+
 * **The Horizon Check:** In a naive system, anything that couldn't batch cleanly drops into a `JobType.SINGLE` directly. But under the rolling horizon, the system checks the `order_age_seconds` variable for each single leftover.
 * **Deferral (The Core Action):** 
   ```python
