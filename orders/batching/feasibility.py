@@ -195,3 +195,56 @@ def _sequence_time_seconds(
     for a, b in zip(perm[:-1], perm[1:]):
         total += float(durations[a][b])
     return total
+
+def evaluate_insertion(
+    existing_stops: List[Stop],
+    new_order: Order,
+    time_matrix_provider: TimeMatrixProvider,
+) -> FeasibilityResult:
+    """
+    Evaluates inserting a new_order (Pickup and Dropoff) into an existing sequence of stops.
+    Tests all valid (P before D) insertion points into the existing_stops.
+    Returns the best FeasibilityResult.
+    """
+    n = len(existing_stops)
+    new_p_stop = Stop(stop_type=StopType.PICKUP, order_id=new_order.id, coord=new_order.pickup, pickup_id=new_order.pickup_id)
+    new_d_stop = Stop(stop_type=StopType.DROPOFF, order_id=new_order.id, coord=new_order.dropoff, pickup_id=new_order.pickup_id)
+
+    best_time = float("inf")
+    best_stops = None
+    explored = 0
+
+    all_stops = list(existing_stops) + [new_p_stop, new_d_stop]
+    unique_coords_map = {}
+    coords = []
+    for s in all_stops:
+        if s.coord not in unique_coords_map:
+            unique_coords_map[s.coord] = len(coords)
+            coords.append(s.coord)
+
+    durations = time_matrix_provider(coords)
+
+    def sequence_time(seq: List[Stop]) -> float:
+        total = 0.0
+        for a, b in zip(seq[:-1], seq[1:]):
+            a_idx = unique_coords_map[a.coord]
+            b_idx = unique_coords_map[b.coord]
+            total += float(durations[a_idx][b_idx])
+        return total
+
+    for i in range(n + 1):
+        for j in range(i, n + 1):
+            explored += 1
+            seq = list(existing_stops)
+            seq.insert(i, new_p_stop)
+            seq.insert(j + 1, new_d_stop)
+
+            t = sequence_time(seq)
+            if t < best_time:
+                best_time = t
+                best_stops = seq
+
+    if best_stops is None:
+        return FeasibilityResult(False, [], float("inf"), explored_sequences=explored, reason="no feasible sequence")
+
+    return FeasibilityResult(True, best_stops, best_time, explored_sequences=explored)

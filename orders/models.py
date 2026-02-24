@@ -8,7 +8,7 @@ What it does:
 
 Defines enums/constants:
 - OrderStatus = RAW | BATCHING | READY | ASSIGNED | CANCELLED
-- JobType = SINGLE | BATCH_2 | BATCH_3
+- JobType = SINGLE | BATCH
 
 Defines any model validation rules (if using Pydantic).
 
@@ -33,8 +33,7 @@ class OrderStatus(Enum):
 
 class JobType(Enum):
     SINGLE = "SINGLE"
-    BATCH_2 = "BATCH_2"
-    BATCH_3 = "BATCH_3"     
+    BATCH = "BATCH"     
 
 class StopType(Enum):
     PICKUP = "PICKUP"

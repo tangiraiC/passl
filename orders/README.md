@@ -1,6 +1,6 @@
 # Orders Management & Batching Engine
 
-This directory contains the core domain logic for managing logistics orders and the sophisticated algorithm responsible for batching them into optimized delivery jobs (Singles, Pairs, and Triples).
+This directory contains the core domain logic for managing logistics orders and the sophisticated algorithm responsible for batching them into optimized delivery jobs (Singles and dynamic Batches).
 
 The system is designed to be **pure, stateless, and fully disconnected from Django/Celery state**. It relies exclusively on internal data models and pure math/routing constraints, allowing it to easily integrate with any queuing or execution system.
 
@@ -11,7 +11,7 @@ The system is designed to be **pure, stateless, and fully disconnected from Djan
 The core entities that drive the batching system are heavily typed, dataclass-based models.
 
 * **`Order`**: Represents a physical delivery request. Includes identifiers, `pickup` (lon, lat), `dropoff` (lon, lat), and `status`. Also tracks `created_at` utilizing timezone-aware datetime objects for measuring queue wait time.
-* **`Job`**: The output unit of the batching engine. A `Job` is what gets dispatched to a driver. It has a `JobType` (SINGLE, BATCH_2, BATCH_3), holds a list of `order_ids`, and strictly defines the exact sequence of `Stops`. It also outputs metrics like `eta`, `detour_factor`, and `savings_percentage` for tracking efficiency.
+* **`Job`**: The output unit of the batching engine. A `Job` is what gets dispatched to a driver. It has a `JobType` (SINGLE, BATCH), holds a list of `order_ids`, and strictly defines the exact sequence of `Stops`. It also outputs metrics like `eta`, `detour_factor`, and `savings_percentage` for tracking efficiency.
 * **`Stop`**: Represents a single geographical waypoint in a job's routing sequence. It defines whether the stop is a `PICKUP` or `DROPOFF` for a given `order_id` at a specific `coord`.
 
 ---
@@ -26,28 +26,28 @@ The batching algorithm takes a flat list of `Order` objects and optimally reduce
 
 ### A. Clustering (`clustering.py`)
 Comparing every order against every other order is $O(n^2)$. To scale, we cluster orders first.
-* Orders with identical `pickup_id` (e.g., the same restaurant) are put in the same cluster.
-* Optional functionality allows merging clusters that are within a short OSRM driving distance using a dedicated `pickup_time_matrix_provider`.
+* By default, the engine uses **Continuous Route Chaining** (`enable_continuous_chaining=True`), placing all orders under a global pool to allow mathematically finding dropoff-to-pickup chains across different merchants.
+* When disabled, orders with identical `pickup_id` (e.g., the same restaurant) are put in the same cluster.
 * Only orders within the same cluster are considered for batching together.
 
 ### B. Route Feasibility (`feasibility.py`)
-Given a candidate pair or triple of orders, the engine must find the optimal route.
-* Calculates all valid permutations of pickups and dropoffs (e.g., P1 -> P2 -> D1 -> D2).
-* Eliminates invalid routes (a dropoff cannot happen before its pickup).
-* Uses the OSRM base Matrix Provider to score the total travel time of valid routes.
+Given a candidate insertion of an order into a route, the engine must find the optimal route.
+* Rather than testing every single permutation mathematically, it tests all valid (Pickup before Dropoff) insertions into an already assembled `Stop` list.
+* Uses the OSRM base Matrix Provider to score the total travel time of valid insertions.
 * Returns a `FeasibilityResult` containing `is_feasible`, the `best_stops` sequence, and the lowest `best_time_seconds`.
 
 ### C. Scoring & Optimization (`scoring.py`)
-After finding feasible bundles, the system must choose which ones to dispatch.
-* Calculates the **Detour Ratio** ($t_{batch} / \Sigma t_{single}$). To be valid, a bundle must not exceed the `pair_detour_cap` or `triple_detour_cap`.
+After clustering unbatched orders, the system must build bundles.
+* It uses a **Greedy Insertion Heuristic** loop, continually evaluating the best individual unbatched order to insert into a growing `Job` until it violates constraints.
+* Calculates the **Detour Ratio** ($t_{batch} / \Sigma t_{single}$). To be valid, a bundle insertion must not exceed the `pair_detour_cap` or `multi_detour_cap`.
 * Calculates **Savings**: $(\Sigma t_{single} - t_{batch})$.
-* Sorts candidates greedily by maximum savings, generating disjoint sets of optimized BATCH_2 and BATCH_3 jobs.
+* Sorts candidates greedily by maximum savings, repeatedly generating single or batched jobs up to `max_batch_size`.
 * Handles unbatched "leftovers" (see Rolling Horizon below).
 
 ### D. Configuration & Tunings (`policy.py`)
 `BatchingPolicy` holds all the configuration thresholds that dictate engine aggression. You can easily hot-swap policies dynamically (e.g., `default_policy()` vs `peak_policy()` vs `offpeak_policy()`) without changing the algorithmic math.
-* `pair_detour_cap`: Maximum acceptable detour ratio (e.g., `1.15`).
-* `max_batch_size`: Max items in a job (1, 2, or 3).
+* `pair_detour_cap` and `multi_detour_cap`: Maximum acceptable detour ratio (e.g., `1.15`).
+* `max_batch_size`: Max items in a job (dynamic, up to 10 or more).
 * Time limits for age-based scoring tie-breaks.
 
 ### E. API Prefetching (Latency Mitigation)

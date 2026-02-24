@@ -72,7 +72,13 @@ def build_clusters(
     if not orders:
         return []
 
-    # 1) Group by pickup_id (when available)
+    # 1) If continuous chaining is enabled, we bypass spatial partitions entirely.
+    # The Insertion Heuristic in scoring will naturally reject combinations that violate Detour Caps 
+    # and time matrices, meaning we don't need artificial boundaries.
+    if getattr(policy, "enable_continuous_chaining", False):
+         return [Cluster(key="global_chaining_pool", orders=list(orders))]
+
+    # 2) Group by pickup_id (when available)
     by_pickup_id: Dict[str, List[Order]] = {}
     coord_bucket: List[Order] = []
 

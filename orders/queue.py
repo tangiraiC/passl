@@ -48,16 +48,16 @@ class OrdersQueue:
 
     """
     #storage for orders in each state
-    all_orders_id:  Dict[str, Order] = field(default_factory=dict)  # all orders by id
+    _orders:  Dict[str, Order] = field(default_factory=dict)  # all orders by id
 
     #stages are derived from all_orders_id
-    raw_orders_ids: List[str] = field(default_factory=list)  # order ids in RAW
-    batching_pool_ids: List[str] = field(default_factory=list)  # order ids in BATCHING
-    ready_jobs: List[List[str]] = field(default_factory=list)  #
+    _raw_ids: List[str] = field(default_factory=list)  # order ids in RAW
+    _batching_ids: List[str] = field(default_factory=list)  # order ids in BATCHING
+    _ready_jobs: List[any] = field(default_factory=list)  #
 
     #timestamps for stats and timing rules
-    entered_raw_at: Dict[str, datetime] = field(default_factory=dict)  # when each order entered RAW
-    entered_batching_at: Dict[str, datetime] = field(default_factory=dict)  # when each order entered BATCHING
+    _entered_raw_at: Dict[str, datetime] = field(default_factory=dict)  # when each order entered RAW
+    _entered_batching_at: Dict[str, datetime] = field(default_factory=dict)  # when each order entered BATCHING
 
     # --- Public API ---
 
@@ -67,45 +67,45 @@ class OrdersQueue:
         Add a new order to the RAW queue.
         """
         now  = datetime.utcnow()
-        if order.id in self.all_orders_id:
+        if order.id in self._orders:
             #idempotency : dont double insert
             return
         order.status = OrderStatus.RAW
-        self.orders(order.id) = order
-        self.raw_orders_ids.append(order.id)
-        self.entered_raw_at[order.id] = now
+        self._orders[order.id] = order
+        self._raw_ids.append(order.id)
+        self._entered_raw_at[order.id] = now
 
     #get order metghod for internal use to avoid direct dict access 
 
     def get_order(self, order_id: str) -> Optional[Order]:
-        return self.orders.get(order_id)
+        return self._orders.get(order_id)
     
     def raw_orders(self) -> List[Order]:
-        return [self.orders[oid] for oid in self.raw_orders_ids]
+        return [self._orders[oid] for oid in self._raw_ids]
     
     def batching_orders(self) -> List[Order]:
-        return [self.orders[oid] for oid in self.batching_pool_ids]
+        return [self._orders[oid] for oid in self._batching_ids]
     
-    def ready_jobs_list(self) -> List[List[str]]:
-        return list(self.ready_jobs)
+    def ready_jobs_list(self) -> List[any]:
+        return list(self._ready_jobs)
     
-    def pop_ready_jobs(self , n: int  = 1)->List[job]:
+    def pop_ready_jobs(self , n: int  = 1) -> List[any]:
         """
         FIFO POP FROM READY JOBS
         """
 
-        if n <= 0:
+        if n <= 0: #n is the number of jobs to pop
             return []
         
-        jobs = self.ready_jobs[:n]
-        self.ready_jobs = self.ready_jobs[n:]
+        jobs = self._ready_jobs[:n]
+        self._ready_jobs = self._ready_jobs[n:]
         return jobs
     
     def stats(self) -> QueueStats:
         return QueueStats(
-            raw_count = len(self.raw_orders_ids),
-            batching_count = len(self.batching_pool_ids),
-            ready_count = len(self.ready_jobs),
+            raw_count = len(self._raw_ids),
+            batching_count = len(self._batching_ids),
+            ready_count = len(self._ready_jobs),
             now= datetime.utcnow()
         )
     
@@ -133,18 +133,18 @@ class OrdersQueue:
         moved :  List[Order] = []
 
         #iterate over a snapshot to allow removals 
-        raw_snapshot = list(self.raw_orders_ids)
+        raw_snapshot = list(self._raw_ids)
         for oid in raw_snapshot: #oid is order id
             if limit is not None and len(moved) >= limit:
                 break
 
-            order = self.all_orders_id.get(oid)
+            order = self._orders.get(oid)
             if order.status != OrderStatus.RAW:
                 #should not happen but skip if status changed
-                self.raw_orders_ids.remove(oid)
+                self._raw_ids.remove(oid)
                 continue
 
-            entered_raw_at = self.entered_raw_at.get(oid, now)
+            entered_raw_at = self._entered_raw_at.get(oid, now)
             raw_age_sec = (now - entered_raw_at).total_seconds()
 
             force_by_age = ( #if max_raw_age_sec is set, force move if order has been in RAW too long

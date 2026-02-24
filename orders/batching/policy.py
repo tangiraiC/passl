@@ -42,8 +42,7 @@ class BatchingPolicy:
     """
 
     # --- Batch size caps ---
-    max_batch_size: int = 3
-    allow_triples: bool = True
+    max_batch_size: int = 10
 
     # --- Candidate control (performance / scalability) ---
     # Limit how many orders per cluster the algorithm considers.
@@ -59,16 +58,17 @@ class BatchingPolicy:
     # between pickups is within this threshold.
     near_pickup_time_sec: int = 180  # 3 minutes
 
-    # Optional extra guard: if you want an absolute cap on pickup separation.
-    # Set to None to ignore.
-    near_pickup_max_distance_m: int | None = None
+    # --- Continuous Route Chaining ---
+    # Merge all orders into a single global pool to check distance mathematics across all pick-ups and drop-offs.
+    enable_continuous_chaining: bool = True
+    chaining_radius_sec: int = 400
 
     # --- Detour caps (direction/efficiency constraints) ---
     # Pair bundle must not exceed this multiple of sum of individual trips.
     pair_detour_cap: float = 1.15
 
-    # Triple bundle must not exceed this multiple of sum of individual trips.
-    triple_detour_cap: float = 1.20
+    # Multi bundle (>2) must not exceed this multiple of sum of individual trips.
+    multi_detour_cap: float = 1.25
 
     # --- Waiting / aging rules (queue layer may enforce, but policy lives here) ---
     # Soft wait: after this, prioritize forming something (even if not perfect).
@@ -98,17 +98,14 @@ class BatchingPolicy:
         """
         Basic sanity checks. Call once at startup if you want.
         """
-        if self.max_batch_size not in (1, 2, 3):
-            raise ValueError("max_batch_size must be 1, 2, or 3")
-
-        if self.allow_triples and self.max_batch_size < 3:
-            raise ValueError("allow_triples=True requires max_batch_size >= 3")
+        if self.max_batch_size < 1:
+            raise ValueError("max_batch_size must be >= 1")
 
         if self.pair_detour_cap < 1.0:
             raise ValueError("pair_detour_cap must be >= 1.0")
 
-        if self.triple_detour_cap < 1.0:
-            raise ValueError("triple_detour_cap must be >= 1.0")
+        if self.multi_detour_cap < 1.0:
+            raise ValueError("multi_detour_cap must be >= 1.0")
 
         if self.near_pickup_time_sec <= 0:
             raise ValueError("near_pickup_time_sec must be > 0")
@@ -143,8 +140,10 @@ def peak_policy() -> BatchingPolicy:
     """
     p = BatchingPolicy(
         near_pickup_time_sec=240,    # allow slightly wider pickup proximity
+        enable_continuous_chaining=True,
+        chaining_radius_sec=500,
         pair_detour_cap=1.18,
-        triple_detour_cap=1.25,
+        multi_detour_cap=1.35,
         batching_soft_wait_sec=120,  # rebatch sooner
         batching_hard_wait_sec=540,  # keep hard wait reasonable
         age_weight=0.08,
@@ -159,8 +158,10 @@ def offpeak_policy() -> BatchingPolicy:
     """
     p = BatchingPolicy(
         near_pickup_time_sec=150,
+        enable_continuous_chaining=False,
+        chaining_radius_sec=180,
         pair_detour_cap=1.10,
-        triple_detour_cap=1.18,
+        multi_detour_cap=1.18,
         batching_soft_wait_sec=90,
         batching_hard_wait_sec=420,
         age_weight=0.03,
