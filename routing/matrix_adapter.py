@@ -5,36 +5,71 @@ from typing import List, Tuple
 LatLon = Tuple[float, float]
 
 
-def time_matrix_provider_from_osrm_client(osrm_client):
+class PreloadingTimeMatrixProvider:
     """
     Adapts your routing.osrm_client.OSRMClient into a batching-friendly
-    time-matrix provider.
-
-    Expected OSRMClient API (based on your earlier signature):
-      compute_table(sources: List[LatLon], destinations: List[LatLon])
-        -> Dict[(i, j)] -> {"duration": seconds, "distance": meters}
+    time-matrix provider that supports caching and bulk prefetching.
     """
+    def __init__(self, osrm_client):
+        self.osrm_client = osrm_client
+        self._cache = {}  # type: Dict[Tuple[float, float, float, float], float]
 
-    def provider(coords: List[LatLon]) -> List[List[float]]:
-        #n is
-        number_of_coordinates = len(coords)
-        if number_of_coordinates == 0:
+    def prefetch(self, coords: List[LatLon]) -> None:
+        """
+        Takes a list of unique coordinates and fetches the entire NxN table from OSRM once.
+        Caches it in local memory so subsequent `__call__` lookups are instant.
+        """
+        n = len(coords)
+        if n == 0:
+            return
+
+        table = self.osrm_client.compute_table(coords, coords)
+        durations = table.get("durations", [])
+
+        for i, src in enumerate(coords):
+            if i >= len(durations): break
+            for j, dest in enumerate(coords):
+                if j >= len(durations[i]): break
+                duration = durations[i][j]
+                if duration is not None:
+                    self._cache[(src[0], src[1], dest[0], dest[1])] = float(duration)
+
+    def __call__(self, coords: List[LatLon]) -> List[List[float]]:
+        n = len(coords)
+        if n == 0:
             return []
 
-        table = osrm_client.compute_table(coords, coords)
+        m = [[float('inf') for _ in range(n)] for _ in range(n)]
 
-        # Build NxN durations matrix
-        #m is a 2D list of floats, where m[i][j] is the duration from coords[i] to coords[j]
-        m = [[0.0 for _ in range(number_of_coordinates)] for _ in range(number_of_coordinates)] # m is initialized to 0, but will be overwritten by actual durations from OSRM
-        for i in range(number_of_coordinates):
-            for j in range(number_of_coordinates):
-                cell = table.get((i, j))
-                if cell is None:
-                    # Fail safe: treat missing as very large
-                    m[i][j] = float("inf")
+        # Check which coords we already have in cache
+        has_missing = False
+        for i, src in enumerate(coords):
+            for j, dest in enumerate(coords):
+                key = (src[0], src[1], dest[0], dest[1])
+                if key in self._cache:
+                    m[i][j] = self._cache[key]
                 else:
-                    # Use whichever key you store; common is "duration"
-                    m[i][j] = float(cell.get("duration", float("inf")))
+                    has_missing = True
+
+        # Fallback: If the engine asks for a coordinate we didn't prefetch, 
+        # instantly fetch just what we need to satisfy safety constraints.
+        if has_missing:
+            table = self.osrm_client.compute_table(coords, coords)
+            durations = table.get("durations", [])
+            for i, src in enumerate(coords):
+                if i >= len(durations): break
+                for j, dest in enumerate(coords):
+                    if j >= len(durations[i]): break
+                    duration = durations[i][j]
+                    if duration is not None:
+                        val = float(duration)
+                        self._cache[(src[0], src[1], dest[0], dest[1])] = val
+                        m[i][j] = val
+
         return m
 
-    return provider
+def time_matrix_provider_from_osrm_client(osrm_client) -> PreloadingTimeMatrixProvider:
+    """
+    Legacy wrapper to maintain compatibility while returning the new preloader.
+    """
+    return PreloadingTimeMatrixProvider(osrm_client)

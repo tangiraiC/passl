@@ -117,24 +117,36 @@ class OSRMClient:
             """
             if not destinations:
                 return {'durations': [], 'distances': []} #defensive: if no destinations, return empty results
-            coordinates = self.format_coordinates(sources + destinations)
 
-            #source is indexed from 0 to len(sources)-1, dest is indexed from len(sources) to len(sources)+len(destinations)-1
-            #destination index in OSRM table is offset by len(sources)
-            destination_index = ";".join(
-                str(i) for i in range(1, len(destinations) +1 )
-            ) 
+            # OSRM limits points. If sources == destinations (NxN matrix), 
+            # we should not duplicate them in the URL.
+            is_symmetric = (sources == destinations)
+            
+            if is_symmetric:
+                coordinates = self.format_coordinates(sources)
+                # OSRM by default computes all-to-all if sources/destinations aren't specified,
+                # but we can specify them just in case.
+                params = {
+                    "annotations": "duration,distance",
+                }
+            else:
+                coordinates = self.format_coordinates(sources + destinations)
+                destination_index = ";".join(
+                    str(i) for i in range(len(sources), len(sources) + len(destinations))
+                )
+                source_index = ";".join(str(i) for i in range(len(sources)))
+                params = {
+                    "sources": source_index,
+                    "destinations": destination_index,
+                    "annotations": "duration,distance",
+                }
 
             url =  f"{self.base_url}/table/v1/{self.profile}/{coordinates}"
 
             response = requests.get(
                 url,
-                params = {
-                    "sources": "0",
-                    "destinations": destination_index,
-                    "annotations": "duration,distance",
-                },
-                timeout= self.timeout
+                params=params,
+                timeout=self.timeout
             )
 
             data = response.json() #OSRM returns a JSON response with table data
@@ -142,14 +154,19 @@ class OSRMClient:
             if data.get("code") != "Ok":
                 raise OSMRError(f"OSRM error: {data.get('message', 'Unknown error')}")
             
-            #OSRM  returns a matrix , we only requested one source and multiple destinations, so we take the first row of the matrix
-            distances = data["distances"][0] #list of distances from source to each destination
-            durations = data["durations"][0] #list of durations from source to each destination
-
-            return{
+            # For symmetric NxN, distances/durations are just the full matrix.
+            # Otherwise we'd have to slice them, but OSRM returns them as requested.
+            distances = data["distances"] 
+            durations = data["durations"] 
+            
+            # The original code assumed a 1xN query by doing `distances[0]`. 
+            # But batching requires the full matrix! We return the full matrix.
+            return {
                 "durations": durations,
                 "distances": distances, 
             }
+
+
 
 
 

@@ -121,6 +121,16 @@ def batch_orders(
         if not cluster_orders:
             continue
 
+        # --- PREFETCH OSRM TABLE ---
+        # If the provider supports bulk prefetching, gather all unique coords 
+        # for this cluster to prevent hundreds of individual HTTP requests.
+        if hasattr(stop_time_matrix_provider, "prefetch"):
+            unique_coords = set()
+            for o in cluster_orders:
+                unique_coords.add(o.pickup)
+                unique_coords.add(o.dropoff)
+            stop_time_matrix_provider.prefetch(list(unique_coords))
+
         cluster_jobs = score_and_select_jobs(
             cluster_orders,
             time_matrix_provider=stop_time_matrix_provider,

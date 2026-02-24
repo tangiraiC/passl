@@ -25,8 +25,8 @@ class MockOSRM:
 
 def test_batching_real_osrm_dataset():
 
-    # --- 1. OSRM Setup ---
-    provider = time_matrix_provider_from_osrm_client(MockOSRM())
+    # Using the real OSRMClient pointed to BASE_URL in .env with higher timeout for free server
+    provider = time_matrix_provider_from_osrm_client(OSRMClient(timeout=25))
 
     # --- 2. Load your real dataset ---
     df = pd.read_csv("raw_orders_generated.csv")
