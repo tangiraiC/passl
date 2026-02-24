@@ -1,8 +1,8 @@
 job_id,orders_in_job,accepted_by_driver,wave_number,detour_metric
-3d3d713a-ceb9-4299-934b-69468560768b,3,DRV-028,3,N/A
-27e0dedc-cfed-45cc-8d56-718cd92b22ed,2,DRV-096,2,N/A
-e375b421-7ea6-414e-bd99-7cf323d3203c,3,DRV-053,1,N/A
-40fb8c59-6b16-4472-ab0e-a8d8c3b7cb29,3,DRV-024,4,N/A
-eebf088d-7181-406e-bd5b-9fbcb620a4a5,3,DRV-080,4,N/A
-7376fd1c-33ed-4af6-b3a2-bcdb427eb48c,2,DRV-076,2,N/A
-874fc023-6380-46c5-a4e3-a1f7ef128bea,2,DRV-079,3,N/A
+229a11e5-b1af-4403-bcc6-af7b14c61e90,3,DRV-001,4,N/A
+56b56ec5-8056-4982-a41e-66a41a14a84d,2,DRV-034,5,N/A
+568a69ca-9d98-43ec-8dd7-dc111a23bdf0,3,DRV-030,4,N/A
+fb1dbf62-6e61-43e9-be07-24de358d9353,3,DRV-070,4,N/A
+9676d538-49b1-4c5b-bbc8-ea9662ecbcc5,3,DRV-094,3,N/A
+b6e15295-e885-4964-9c4c-3c8ed6c34603,2,DRV-001,3,N/A
+e9a00f03-700b-47ad-b219-b1e7e0987ac0,2,DRV-066,2,N/A

@@ -27,7 +27,9 @@ from typing import List, Dict, Optional , Tuple
 from datetime import datetime, timedelta
 from dataclasses import dataclass, field
 
-from .models import Order, OrderStatus, JobType, Stop, StopType
+from .models import Order, OrderStatus, JobType, Stop, StopType, Job
+from .batching.policy import BatchingPolicy
+from routing.matrix_adapter import TimeMatrixProvider
 
 @dataclass
 class QueueStats:
@@ -248,7 +250,62 @@ class OrdersQueue:
         return (now - t0).total_seconds()
 
 
-
-
-
+class RollingHorizonManager:
+    """
+    The active time-based "Heartbeat" for the system.
+    Simulates a background cron job loop.
+    Reads waiting periods from the Queue, compares them against the Policy,
+    and forces overdue orders into the Combinatorial Batching Engine.
+    """
+    def __init__(self, queue: OrdersQueue, policy: BatchingPolicy, stop_time_provider: TimeMatrixProvider):
+        self.queue = queue
+        self.policy = policy
+        self.stop_time_provider = stop_time_provider
+        
+    def run_cycle(self, now: Optional[datetime] = None) -> List[Job]:
+        """
+        1. Grabs orders from RAW that have exceeded `batching_soft_wait_sec`.
+        2. Funnels them into BATCHING.
+        3. Fires up `orders.engine.batch_orders`.
+        4. Saves returning Jobs into READY state to be caught by the 5-Wave Dispatcher.
+        """
+        now = now or datetime.utcnow()
+        
+        # 1. Promote ripe Orders from RAW to BATCHING based strictly on policy limits.
+        self.queue.move_raw_to_batching(
+            now=now,
+            max_raw_age_sec=self.policy.batching_soft_wait_sec,
+            limit=self.policy.max_cluster_candidates * 10 # Batch scaling safety
+        )
+        
+        # 2. Extract exactly what is mathematically parked in the BATCHING stage
+        batching_pool = self.queue.batching_orders()
+        
+        if not batching_pool:
+            return [] # Nothing ripe to batch yet.
             
+        # 3. Calculate exact age_weights so older orders out-compete newer orders
+        order_age_seconds: Dict[str, float] = {}
+        if self.policy.prefer_older_orders:
+            for order in batching_pool:
+                age = self.queue.batching_wait_seconds(order.id, now)
+                # Fallback to pure age if they just transitioned
+                if age is None or age == 0:
+                    age = self.queue.raw_wait_seconds(order.id, now) or 1.0
+                order_age_seconds[order.id] = age
+                
+        # 4. Fire the Orchestrator
+        from .batching.engine import batch_orders
+        
+        result = batch_orders(
+            orders=batching_pool,
+            policy=self.policy,
+            stop_time_matrix_provider=self.stop_time_provider,
+            order_age_seconds=order_age_seconds
+        )
+        
+        # 5. Lock resulting outputs directly into the READY queue.
+        if result.jobs:
+            self.queue.finalize_orders_as_ready_jobs(jobs=result.jobs, now=now)
+            
+        return result.jobs

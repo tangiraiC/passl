@@ -10,6 +10,7 @@ import time
 
 from drivers.models import Driver
 from drivers.selection import build_driver_waves
+from drivers.policy import DriverPolicy, default_driver_policy
 from orders.models import Job
 
 class Dispatcher:
@@ -20,15 +21,18 @@ class Dispatcher:
         self.push_service = push_service
         self.db_lock_manager = db_lock_manager
         
-    def dispatch_job_async_loop(self, job: Job, available_drivers: List[Driver]):
+    def dispatch_job_async_loop(self, job: Job, available_drivers: List[Driver], driver_policy: DriverPolicy = None):
         """
         Theoretical background task (e.g. executed by Celery or Redis Task Queue).
         It broadcasts to concentric waves one by one, waiting for a driver to accept.
         """
+        driver_policy = driver_policy or default_driver_policy()
+        
         waves = build_driver_waves(
             pickup_location=job.stops[0].coord,
             drivers=available_drivers,
-            required_capacity=len(job.order_ids)
+            required_capacity=len(job.order_ids),
+            policy=driver_policy
         )
         
         for wave_index, wave_drivers in enumerate(waves):
@@ -41,7 +45,7 @@ class Dispatcher:
             
             # 1. Update active state so drivers see the offer in their app
             if self.db_lock_manager:
-                self.db_lock_manager.set_active_offer(job.id, wave_driver_ids, expires_in_sec=30)
+                self.db_lock_manager.set_active_offer(job.id, wave_driver_ids, expires_in_sec=driver_policy.wave_timeout_seconds)
                 
             # 2. Fire Push Notifications
             if self.push_service:
@@ -49,11 +53,11 @@ class Dispatcher:
                 
             # 3. Wait for timeout or acceptance.
             # NOTE: In strictly asynchronous systems, this process would yield mathematically
-            # instead of blocking time.sleep(). A delayed job would wake up 30s later to 
+            # instead of blocking time.sleep(). A delayed job would wake up `wave_timeout_seconds` later to 
             # execute Wave N+1. This sleep loop represents that theoretical design.
-            time.sleep(30)
+            time.sleep(driver_policy.wave_timeout_seconds)
             
-            # Check if someone accepted during the 30s window
+            # Check if someone accepted during the timeout window
             if self.db_lock_manager and self.db_lock_manager.is_job_accepted(job.id):
                 print(f"Job {job.id} was accepted by a driver in Wave {wave_index + 1}!")
                 return
