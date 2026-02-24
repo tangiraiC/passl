@@ -26,41 +26,55 @@ def filter_eligible_drivers(drivers: List[Driver], required_capacity: int = 1) -
         
     return eligible
 
-def find_best_driver(
+def build_driver_waves(
     pickup_location: Tuple[float, float], 
     drivers: List[Driver], 
     required_capacity: int = 1,
-    max_distance_degrees: float = 0.05  # roughly ~5km depending on lat
-) -> Optional[Driver]:
+) -> List[List[Driver]]:
     """
-    Given a pickup location and a list of all system drivers,
-    filter out ineligible ones and return the single closest driver
-    using a fast Haversine/Euclidean approximation.
+    Given a pickup location, filter out ineligible drivers and group the rest
+    into 5 concentric distance waves.
     
-    If OSRM is needed for exact ETA, it can be passed in here later.
+    Wave 1: Extemely close (e.g. 0-2 km approx)
+    Wave 2: Very close (e.g. 2-4 km)
+    Wave 3: Close (e.g. 4-6 km)
+    Wave 4: Medium (e.g. 6-8 km)
+    Wave 5: Far / Hail Mary (e.g. 8-10 km)
+    
+    If highly accurate OSRM ETA is needed in production instead of Cartesian math,
+    pass the `PreloadingTimeMatrixProvider` into this function.
     """
     
     eligible = filter_eligible_drivers(drivers, required_capacity)
-    if not eligible:
-        return None
-        
-    best_driver = None
-    best_distance = float('inf')
     
+    # Initialize 5 empty waves
+    waves: List[List[Driver]] = [[], [], [], [], []]
+    
+    if not eligible:
+        return waves
+        
     plat, plon = pickup_location
     
     for d in eligible:
         dlat, dlon = d.location
         
-        # Fast pythagorean distance approximation for initial filtering
-        # In production, replace with Haversine or exact OSRM `table` calls
+        # Fast pythagorean approximation for initial radius buckets
         dist = ((plat - dlat) ** 2 + (plon - dlon) ** 2) ** 0.5
         
-        if dist > max_distance_degrees:
-            continue
+        # Sort into 5 cascading waves based on approx radius
+        if dist <= 0.02:      # Wave 1 (~2km)
+            waves[0].append(d)
+        elif dist <= 0.04:    # Wave 2 (~4km)
+            waves[1].append(d)
+        elif dist <= 0.06:    # Wave 3 (~6km)
+            waves[2].append(d)
+        elif dist <= 0.08:    # Wave 4 (~8km)
+            waves[3].append(d)
+        elif dist <= 0.10:    # Wave 5 (~10km)
+            waves[4].append(d)
             
-        if dist < best_distance:
-            best_distance = dist
-            best_driver = d
+    # Sort each wave natively by distance to ensure best in sub-group is first
+    for wave in waves:
+        wave.sort(key=lambda d: ((plat - d.location[0]) ** 2 + (plon - d.location[1]) ** 2) ** 0.5)
             
-    return best_driver
+    return waves
