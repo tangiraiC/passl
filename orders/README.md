@@ -50,6 +50,12 @@ After finding feasible bundles, the system must choose which ones to dispatch.
 * `max_batch_size`: Max items in a job (1, 2, or 3).
 * Time limits for age-based scoring tie-breaks.
 
+### E. API Prefetching (Latency Mitigation)
+To prevent the engine from making N OSRM queries for N permutations, `engine.py` supports bulk prefetching.
+* Before scoring a cluster, the engine harvests all unique coordinates and injects them into the `time_matrix_provider.prefetch()` method.
+* `PreloadingTimeMatrixProvider` inside `matrix_adapter.py` sends exactly **one** large `sources=all&destinations=all` query to OSRM.
+* When `feasibility.py` actually requires times to test permutations, the provider bypasses the network and responds in 0.00ms from local RAM caches.
+
 ---
 
 ## ⏳ 3. Rolling Horizon (Deferred Dispatch)
