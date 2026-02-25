@@ -31,6 +31,10 @@ class DriverPolicy:
     # 0.02 roughly equals ~2.2 kilometers
     wave_radii_degrees: List[float] = field(default_factory=lambda: [0.02, 0.04, 0.06, 0.08, 0.10])
     
+    # Accurate driving times in seconds (e.g., 3 mins, 7 mins, 10 mins...)
+    # Only enforced if a PreloadingTimeMatrixProvider is injected into Dispatcher.
+    wave_eta_seconds: List[int] = field(default_factory=lambda: [180, 420, 600, 780, 960])
+    
     # --- Capacity Constraints ---
     # Default required capacity if a Job somehow fails to specify it
     default_required_capacity: int = 1
@@ -44,6 +48,9 @@ class DriverPolicy:
 
         if not self.wave_radii_degrees or len(self.wave_radii_degrees) != 5:
             raise ValueError("Must provide exactly 5 wave radii for the 5-Wave Dispatcher.")
+            
+        if not self.wave_eta_seconds or len(self.wave_eta_seconds) != 5:
+            raise ValueError("Must provide exactly 5 wave ETAs in seconds.")
 
 def default_driver_policy() -> DriverPolicy:
     """

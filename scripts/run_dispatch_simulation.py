@@ -106,7 +106,7 @@ def run_simulation():
         writer = csv.writer(file)
         writer.writerow(["job_id", "orders_in_job", "accepted_by_driver", "wave_number", "detour_metric"])
         
-        dispatcher = Dispatcher(push_service=MockPushService(writer))
+        dispatcher = Dispatcher(push_service=MockPushService(writer), time_matrix_provider=matrix_provider)
         
         successful_dispatches = 0
         

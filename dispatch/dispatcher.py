@@ -17,9 +17,10 @@ class Dispatcher:
     """
     Coordinates the transaction of a Job to a Driver using 5 Cascading Waves.
     """
-    def __init__(self, push_service=None, db_lock_manager=None):
+    def __init__(self, push_service=None, db_lock_manager=None, time_matrix_provider=None):
         self.push_service = push_service
         self.db_lock_manager = db_lock_manager
+        self.time_matrix_provider = time_matrix_provider
         
     def dispatch_job_async_loop(self, job: Job, available_drivers: List[Driver], driver_policy: DriverPolicy = None):
         """
@@ -32,7 +33,8 @@ class Dispatcher:
             pickup_location=job.stops[0].coord,
             drivers=available_drivers,
             required_capacity=len(job.order_ids),
-            policy=driver_policy
+            policy=driver_policy,
+            time_matrix_provider=self.time_matrix_provider
         )
         
         for wave_index, wave_drivers in enumerate(waves):
