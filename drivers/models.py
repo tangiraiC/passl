@@ -23,6 +23,7 @@ class DriverStatus(str, Enum):
     TRANSIT_TO_COLLECT = "transittoCollect"
     TRANSIT_TO_DROPOFF = "transittoDropoff"
     PAUSED = "paused"
+    BUSY = "busy"
     OFFLINE = "offline"
     UNREGISTERED = "unregistered"
 
@@ -47,7 +48,7 @@ class Driver:
         lat: float,
         lon: float,
         status: str | DriverStatus = DriverStatus.UNREGISTERED,
-        max_capacity: int = 3,
+        max_capacity: int = 10, # Default to 10 for flexibility, can be overridden by real data or driver input.
         last_ping_at: datetime | None = None
     ) -> Driver:
         if isinstance(status, str):

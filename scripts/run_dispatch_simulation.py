@@ -22,30 +22,47 @@ class MockPushService:
     def revoke_offer(self, driver_ids, job_id):
         pass
 
-def load_orders(filepath="raw_orders_generated.csv", limit=50) -> List[Order]:
+def load_orders(filepath="sampledata/orders.csv", limit=50) -> List[Order]:
     orders = []
-    
-    # Resolve the correct path depending on where the user runs the script from.
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    absolute_path = os.path.join(base_dir, filepath)
     
+    # Load lookup tables
+    restaurants = {}
+    with open(os.path.join(base_dir, "sampledata/restaurants.csv"), 'r') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            restaurants[row['restaurant_id']] = (float(row['lat']), float(row['lon']))
+            
+    customers = {}
+    with open(os.path.join(base_dir, "sampledata/customers.csv"), 'r') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            customers[row['customer_id']] = (float(row['lat']), float(row['lon']))
+
+    absolute_path = os.path.join(base_dir, filepath)
     with open(absolute_path, 'r') as file:
         reader = csv.DictReader(file)
         count = 0
         for row in reader:
             if count >= limit: break
+            
+            rid = row['restaurant_id']
+            cid = row['customer_id']
+            if rid not in restaurants or cid not in customers:
+                continue
+                
             orders.append(
                 Order(
                     id=row['order_id'],
-                    pickup=(float(row['pickup_lat']), float(row['pickup_lon'])),
-                    dropoff=(float(row['dropoff_lat']), float(row['dropoff_lon'])),
-                    pickup_id=row['merchant_id']
+                    pickup=restaurants[rid],
+                    dropoff=customers[cid],
+                    pickup_id=rid
                 )
             )
             count += 1
     return orders
 
-def load_drivers(filepath="scripts/mock_drivers_100.csv") -> List[Driver]:
+def load_drivers(filepath="sampledata/drivers.csv") -> List[Driver]:
     drivers = []
     
     # Resolve the correct path depending on where the user runs the script from.
@@ -58,10 +75,10 @@ def load_drivers(filepath="scripts/mock_drivers_100.csv") -> List[Driver]:
             drivers.append(
                 Driver.new(
                     row['driver_id'],
-                    float(row['lat']),
-                    float(row['lon']),
+                    float(row['current_lat']),
+                    float(row['current_lon']),
                     row['status'],
-                    int(row['max_capacity'])
+                    int(row['max_batch_size'])
                 )
             )
     return drivers
@@ -70,8 +87,8 @@ def run_simulation():
     print("=== STARTING END-TO-END DISPATCH SIMULATION ===")
     
     # 1. Load Data
-    orders = load_orders("raw_orders_generated.csv", limit=30) 
-    drivers = load_drivers("mock_drivers_100.csv")
+    orders = load_orders("sampledata/orders.csv", limit=30) 
+    drivers = load_drivers("sampledata/drivers.csv")
     print(f"Loaded {len(orders)} Orders and {len(drivers)} Drivers.\n")
     
     # 2. Configure System
@@ -112,21 +129,27 @@ def run_simulation():
         
         from drivers.selection import build_driver_waves
         
+        print("\n--- Batched Jobs Summary ---")
         for job in batch_result.jobs:
+            print(f"Job {job.job_id.split('-')[1]} -> Orders: {job.order_ids}")
+            
             waves = build_driver_waves(
                 pickup_location=job.stops[0].coord, 
                 drivers=drivers, 
                 required_capacity=len(job.order_ids)
             )
             
+            for i, wave in enumerate(waves):
+                driver_ids = [d.id for d in wave]
+                print(f"  Wave {i+1} Drivers ({len(wave)}): {driver_ids}")
+            
             job_accepted = False
             for wave_index, wave in enumerate(waves):
                 if not wave: continue
                 
                 # Simulate a driver deciding to accept.
-                # In Wave 1, there's a 30% chance someone hits accept before the 30s timeout.
-                # In Wave 2, 50% chance, etc. (Model simulating race conditions).
-                acceptance_probability = 0.3 + (wave_index * 0.15)
+                # In this scenario, we assume the first driver in the wave ALWAYS accepts.
+                acceptance_probability = 1.0
                 
                 if random.random() < acceptance_probability:
                     # Simulation: Someone clicked accept!
@@ -152,7 +175,7 @@ def run_simulation():
     print("\n=== SIMULATION COMPLETE ===")
     print(f"Orders Grouped: {batched_orders} / {batched_orders + total_unbatched}")
     print(f"Jobs Dispatched: {successful_dispatches} / {len(batch_result.jobs)}")
-    print("Results written to 'dispatch_results.csv'.")
+    print("Results written to 'dispatch_results1.csv'.")
 
 if __name__ == "__main__":
     run_simulation()

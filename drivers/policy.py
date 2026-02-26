@@ -45,7 +45,8 @@ class DriverPolicy:
         """
         if self.wave_timeout_seconds <= 0:
             raise ValueError("wave_timeout_seconds must be > 0")
-
+        
+        #this if states measures to ensure that the policy is properly configured with 5 waves, each having a defined radius and ETA. It prevents misconfigurations that could lead to runtime errors in the Dispatcher when it tries to access these lists.
         if not self.wave_radii_degrees or len(self.wave_radii_degrees) != 5:
             raise ValueError("Must provide exactly 5 wave radii for the 5-Wave Dispatcher.")
             

@@ -1,0 +1,9 @@
+restaurant_id,name,lat,lon,avg_prep_time_min
+r_001,Rest 1,50.2121,9.9866,18
+r_002,Restaurant 2,-17.8277,31.0534,18
+r_003,Restaurant 3,-17.8049,31.0472,20
+r_004,Restaurant 4,-17.8296,31.0547,18
+r_005,Restaurant 5,-17.8271,31.0519,18
+r_006,Restaurant 6,-17.8253,31.0456,18
+r_007,Restaurant 7,-17.829,31.0538,18
+r_008,Restaurant 8,-17.7948,31.033,22

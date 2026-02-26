@@ -117,4 +117,8 @@ def build_driver_waves(
             ) ** 0.5
         )
             
+    # Cap each wave to a maximum of 5 drivers to prevent over-broadcasting
+    for i in range(len(waves)):
+        waves[i] = waves[i][:5]
+            
     return waves

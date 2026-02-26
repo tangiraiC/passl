@@ -56,11 +56,11 @@ class BatchingPolicy:
     # If pickup_id matches, they are always in the same cluster.
     # If pickup_id differs, treat as "near pickup" only if OSRM travel time
     # between pickups is within this threshold.
-    near_pickup_time_sec: int = 180  # 3 minutes
+    near_pickup_time_sec: int = 0  # Disabled: Strict Same-Pickup Only
 
     # --- Continuous Route Chaining ---
     # Merge all orders into a single global pool to check distance mathematics across all pick-ups and drop-offs.
-    enable_continuous_chaining: bool = True
+    enable_continuous_chaining: bool = False
     chaining_radius_sec: int = 400
 
     # --- Detour caps (direction/efficiency constraints) ---
@@ -107,8 +107,8 @@ class BatchingPolicy:
         if self.multi_detour_cap < 1.0:
             raise ValueError("multi_detour_cap must be >= 1.0")
 
-        if self.near_pickup_time_sec <= 0:
-            raise ValueError("near_pickup_time_sec must be > 0")
+        if self.near_pickup_time_sec < 0:
+            raise ValueError("near_pickup_time_sec must be >= 0")
 
         if self.max_cluster_candidates <= 0:
             raise ValueError("max_cluster_candidates must be > 0")
@@ -139,8 +139,8 @@ def peak_policy() -> BatchingPolicy:
     You can wire this up later to a time-series monitor.
     """
     p = BatchingPolicy(
-        near_pickup_time_sec=240,    # allow slightly wider pickup proximity
-        enable_continuous_chaining=True,
+        near_pickup_time_sec=0,    # Strictly disabled cross-merchant batches
+        enable_continuous_chaining=False,
         chaining_radius_sec=500,
         pair_detour_cap=1.18,
         multi_detour_cap=1.35,
@@ -157,7 +157,7 @@ def offpeak_policy() -> BatchingPolicy:
     Example: less aggressive batching during off-peak to protect ETAs.
     """
     p = BatchingPolicy(
-        near_pickup_time_sec=150,
+        near_pickup_time_sec=0,
         enable_continuous_chaining=False,
         chaining_radius_sec=180,
         pair_detour_cap=1.10,

@@ -1,33 +1,3 @@
-
-"""
-Purpose: Determine if a bundle is route-feasible and compute best route time.
-What it does:
-
-Implements precedence constraints:
-
-each order’s pickup must occur before its dropoff
-
-For candidate bundles of size 2 or 3:
-
-enumerates valid stop sequences (small fixed set)
-
-computes route time using OSRM time matrix lookups
-
-Returns:
-
-FeasibilityResult like:
-
-is_feasible
-
-best_sequence (ordered Stops)
-
-t_batch_seconds
-
-optional per-order ETAs along the sequence
-
-Rule: This is the “math/route validity” module. No business scoring beyond feasibility output.
-"""
-
 # orders/batching/feasibility.py
 
 from __future__ import annotations

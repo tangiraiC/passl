@@ -107,7 +107,7 @@ def build_clusters(
     # For pickup_id clusters, we generally do NOT merge across pickup_ids by default because operationally
     # pickups at different merchants can have different readiness times and workflows.
     # If you want near-merchant merging, do it explicitly in a separate mode.
-    if pickup_time_matrix_provider:
+    if pickup_time_matrix_provider and policy.near_pickup_time_sec > 0:
         clusters = _merge_near_pickup_clusters(
             clusters=clusters,
             pickup_time_matrix_provider=pickup_time_matrix_provider,

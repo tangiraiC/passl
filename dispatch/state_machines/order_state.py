@@ -39,8 +39,8 @@ def transition_orders_to_assigned(orders: List[Order]) -> List[Order]:
 def break_down_job_to_raw(orders: List[Order]) -> List[Order]:
     """
     Emergency Fallback: If a driver cancels, or a timeout completely fails,
-    we shatter the Job and force the orders back to the start of the queue.
+    put the orders back into READY state so the Job can be dispatched again immediately.
     """
     for order in orders:
-        order.status = OrderStatus.RAW
+        order.status = OrderStatus.READY
     return orders
