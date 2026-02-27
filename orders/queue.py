@@ -83,24 +83,24 @@ class OrdersQueue:
         return self._orders.get(order_id)
     
     def raw_orders(self) -> List[Order]:
-        return [self._orders[oid] for oid in self._raw_ids]
+        return [self._orders[order_id] for order_id in self._raw_ids]
     
     def batching_orders(self) -> List[Order]:
-        return [self._orders[oid] for oid in self._batching_ids]
+        return [self._orders[order_id] for order_id in self._batching_ids]
     
     def ready_jobs_list(self) -> List[any]:
         return list(self._ready_jobs)
     
-    def pop_ready_jobs(self , n: int  = 1) -> List[any]:
+    def pop_ready_jobs(self , num_jobs: int  = 1) -> List[any]:
         """
         FIFO POP FROM READY JOBS
         """
 
-        if n <= 0: #n is the number of jobs to pop
+        if num_jobs <= 0: #n is the number of jobs to pop
             return []
         
-        jobs = self._ready_jobs[:n]
-        self._ready_jobs = self._ready_jobs[n:]
+        jobs = self._ready_jobs[:num_jobs]
+        self._ready_jobs = self._ready_jobs[num_jobs:]
         return jobs
     
     def stats(self) -> QueueStats:
@@ -136,17 +136,17 @@ class OrdersQueue:
 
         #iterate over a snapshot to allow removals 
         raw_snapshot = list(self._raw_ids)
-        for oid in raw_snapshot: #oid is order id
+        for order_id in raw_snapshot: 
             if limit is not None and len(moved) >= limit:
                 break
 
-            order = self._orders.get(oid)
+            order = self._orders.get(order_id)
             if order.status != OrderStatus.RAW:
                 #should not happen but skip if status changed
-                self._raw_ids.remove(oid)
+                self._raw_ids.remove(order_id)
                 continue
 
-            entered_raw_at = self._entered_raw_at.get(oid, now)
+            entered_raw_at = self._entered_raw_at.get(order_id, now)
             raw_age_sec = (now - entered_raw_at).total_seconds()
 
             force_by_age = ( #if max_raw_age_sec is set, force move if order has been in RAW too long
@@ -162,10 +162,10 @@ class OrdersQueue:
                     ready_by_window = order.ready_at <= (now + timedelta(seconds=ready_horizon_sec))
 
             if force_by_age or ready_by_window:
-                self._raw_ids.remove(oid)
-                self._batching_ids.append(oid)
+                self._raw_ids.remove(order_id)
+                self._batching_ids.append(order_id)
                 order.status = OrderStatus.BATCHING
-                self._entered_batching_at[oid] = now
+                self._entered_batching_at[order_id] = now
                 moved.append(order)
 
         return moved
@@ -189,16 +189,16 @@ class OrdersQueue:
         # Build a set of all order_ids included in jobs
         used_order_ids = set()
         for job in jobs:
-            for oid in job.order_ids:
-                used_order_ids.add(oid)
+            for order_id in job.order_ids:
+                used_order_ids.add(order_id)
 
         # Remove used orders from batching pool and update status
         # Iterate over a snapshot to safely remove
         batching_snapshot = list(self._batching_ids)
-        for oid in batching_snapshot:
-            if oid in used_order_ids:
-                self._batching_ids.remove(oid)
-                order = self._orders.get(oid)
+        for order_id in batching_snapshot:
+            if order_id in used_order_ids:
+                self._batching_ids.remove(order_id)
+                order = self._orders.get(order_id)
                 if order:
                     order.status = OrderStatus.READY
 

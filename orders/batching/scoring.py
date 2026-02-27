@@ -72,7 +72,7 @@ def score_and_select_jobs(
 
     while unbatched:
         if policy.prefer_older_orders:
-            unbatched.sort(key=lambda o: order_age_seconds.get(o.id, 0.0), reverse=True)
+            unbatched.sort(key=lambda order: order_age_seconds.get(order.id, 0.0), reverse=True)
             
         seed_order = unbatched.pop(0)
         current_job_orders = [seed_order]
@@ -92,20 +92,20 @@ def score_and_select_jobs(
             best_new_single_sum = 0.0
             
             for candidate in unbatched:
-                feas = evaluate_insertion(current_stops, candidate, time_matrix_provider)
-                if not feas.is_feasible:
+                feasibility_result = evaluate_insertion(current_stops, candidate, time_matrix_provider)
+                if not feasibility_result.is_feasible:
                     continue
                     
                 new_single_sum = current_single_sum + best_single_time_sum_seconds([candidate], time_matrix_provider)
                 
-                detour = feas.best_time_seconds / new_single_sum if new_single_sum > 0 else float("inf")
+                detour = feasibility_result.best_time_seconds / new_single_sum if new_single_sum > 0 else float("inf")
                 
                 # Check Detour Cap
                 cap = policy.pair_detour_cap if len(current_job_orders) + 1 == 2 else policy.multi_detour_cap
                 if detour > cap:
                     continue
                     
-                savings = new_single_sum - feas.best_time_seconds
+                savings = new_single_sum - feasibility_result.best_time_seconds
                 score = float(savings)
                 
                 if policy.prefer_older_orders:
@@ -117,7 +117,7 @@ def score_and_select_jobs(
                 if gain > 0 and (best_gain is None or gain > best_gain):
                     best_gain = gain
                     best_order_to_insert = candidate
-                    best_insertion_result = feas
+                    best_insertion_result = feasibility_result
                     best_new_single_sum = new_single_sum
                     
             if best_order_to_insert is not None:
@@ -135,7 +135,7 @@ def score_and_select_jobs(
                 continue 
             jobs.append(_single_job(seed_order))
         else:
-            job = Job.new(job_type=JobType.BATCH, order_ids=[o.id for o in current_job_orders], stops=current_stops)
+            job = Job.new(job_type=JobType.BATCH, order_ids=[order.id for order in current_job_orders], stops=current_stops)
             job.eta = current_batch_time
             job.detour_factor = current_batch_time / current_single_sum if current_single_sum > 0 else 1.0
             job.savings_percentage = current_single_sum - current_batch_time

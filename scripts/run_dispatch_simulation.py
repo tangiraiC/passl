@@ -28,14 +28,14 @@ def load_orders(filepath="sampledata/orders.csv", limit=50) -> List[Order]:
     
     # Load lookup tables
     restaurants = {}
-    with open(os.path.join(base_dir, "sampledata/restaurants.csv"), 'r') as f:
-        reader = csv.DictReader(f)
+    with open(os.path.join(base_dir, "sampledata/restaurants.csv"), 'r') as file:
+        reader = csv.DictReader(file)
         for row in reader:
             restaurants[row['restaurant_id']] = (float(row['lat']), float(row['lon']))
             
     customers = {}
-    with open(os.path.join(base_dir, "sampledata/customers.csv"), 'r') as f:
-        reader = csv.DictReader(f)
+    with open(os.path.join(base_dir, "sampledata/customers.csv"), 'r') as file:
+        reader = csv.DictReader(file)
         for row in reader:
             customers[row['customer_id']] = (float(row['lat']), float(row['lon']))
 
@@ -46,17 +46,17 @@ def load_orders(filepath="sampledata/orders.csv", limit=50) -> List[Order]:
         for row in reader:
             if count >= limit: break
             
-            rid = row['restaurant_id']
-            cid = row['customer_id']
-            if rid not in restaurants or cid not in customers:
+            restaurant_id = row['restaurant_id']
+            customer_id = row['customer_id']
+            if restaurant_id not in restaurants or customer_id not in customers:
                 continue
                 
             orders.append(
                 Order(
                     id=row['order_id'],
-                    pickup=restaurants[rid],
-                    dropoff=customers[cid],
-                    pickup_id=rid
+                    pickup=restaurants[restaurant_id],
+                    dropoff=customers[customer_id],
+                    pickup_id=restaurant_id
                 )
             )
             count += 1
@@ -139,9 +139,9 @@ def run_simulation():
                 required_capacity=len(job.order_ids)
             )
             
-            for i, wave in enumerate(waves):
-                driver_ids = [d.id for d in wave]
-                print(f"  Wave {i+1} Drivers ({len(wave)}): {driver_ids}")
+            for wave_idx, wave in enumerate(waves):
+                driver_ids = [driver.id for driver in wave]
+                print(f"  Wave {wave_idx+1} Drivers ({len(wave)}): {driver_ids}")
             
             job_accepted = False
             for wave_index, wave in enumerate(waves):

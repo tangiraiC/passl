@@ -80,7 +80,7 @@ def batch_orders(
     stop_time_matrix_provider:
         OSRM time matrix provider for general stop-to-stop durations.
         Used for feasibility evaluation of 1-3 order bundles.
-        Signature: (coords: List[LatLon]) -> matrix seconds.
+        Signature: (coordinates: List[LatLon]) -> matrix seconds.
     pickup_time_matrix_provider:
         Optional OSRM time matrix provider for pickup-to-pickup only,
         used in clustering for near-pickup merging.
@@ -117,19 +117,19 @@ def batch_orders(
 
         # Optional: if you want to avoid double-processing orders that appear in multiple clusters
         # (should be rare unless you enable near-pickup merging), skip already used orders.
-        cluster_orders = [o for o in cluster.orders if o.id not in used_order_ids]
+        cluster_orders = [order for order in cluster.orders if order.id not in used_order_ids]
         if not cluster_orders:
             continue
 
         # --- PREFETCH OSRM TABLE ---
-        # If the provider supports bulk prefetching, gather all unique coords 
+        # If the provider supports bulk prefetching, gather all unique coordinates 
         # for this cluster to prevent hundreds of individual HTTP requests.
         if hasattr(stop_time_matrix_provider, "prefetch"):
-            unique_coords = set()
-            for o in cluster_orders:
-                unique_coords.add(o.pickup)
-                unique_coords.add(o.dropoff)
-            stop_time_matrix_provider.prefetch(list(unique_coords))
+            unique_coordinates = set()
+            for order in cluster_orders:
+                unique_coordinates.add(order.pickup)
+                unique_coordinates.add(order.dropoff)
+            stop_time_matrix_provider.prefetch(list(unique_coordinates))
 
         cluster_jobs = score_and_select_jobs(
             cluster_orders,
@@ -139,14 +139,14 @@ def batch_orders(
         )
 
         # Track used orders
-        for j in cluster_jobs:
-            for oid in j.order_ids:
-                used_order_ids.add(oid)
+        for job in cluster_jobs:
+            for order_id in job.order_ids:
+                used_order_ids.add(order_id)
 
         jobs.extend(cluster_jobs)
 
     # 3) Determine unbatched orders (if any)
-    by_id = {o.id: o for o in orders}
-    unbatched = [by_id[oid] for oid in by_id.keys() if oid not in used_order_ids]
+    by_id = {order.id: order for order in orders}
+    unbatched = [by_id[order_id] for order_id in by_id.keys() if order_id not in used_order_ids]
 
     return BatchResult(jobs=jobs, unbatched_orders=unbatched)

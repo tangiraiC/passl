@@ -47,10 +47,10 @@ class OSRMClient:
         #----------------
         # Internal helper methods for coordinate formatting, URL construction, error handling, etc.
         #----------------
-    def format_coordinates(self, coords: List[LatLon]) -> str:
+    def format_coordinates(self, coordinates: List[LatLon]) -> str:
             
         """Convert list of (lat, lon) to OSRM format 'lon,lat;lon,lat;...'"""
-        return ';'.join([f"{lon},{lat}" for lat, lon in coords])
+        return ';'.join([f"{lon},{lat}" for lat, lon in coordinates])
         #----------------
         # Public methods for route, table, etc.
         #----------------
@@ -132,9 +132,9 @@ class OSRMClient:
             else:
                 coordinates = self.format_coordinates(sources + destinations)
                 destination_index = ";".join(
-                    str(i) for i in range(len(sources), len(sources) + len(destinations))
+                    str(index) for index in range(len(sources), len(sources) + len(destinations))
                 )
-                source_index = ";".join(str(i) for i in range(len(sources)))
+                source_index = ";".join(str(index) for index in range(len(sources)))
                 params = {
                     "sources": source_index,
                     "destinations": destination_index,

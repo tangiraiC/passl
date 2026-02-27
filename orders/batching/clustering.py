@@ -82,11 +82,11 @@ def build_clusters(
     by_pickup_id: Dict[str, List[Order]] = {}
     coord_bucket: List[Order] = []
 
-    for o in orders:
-        if o.pickup_id:
-            by_pickup_id.setdefault(o.pickup_id, []).append(o)
+    for order in orders:
+        if order.pickup_id:
+            by_pickup_id.setdefault(order.pickup_id, []).append(order)
         else:
-            coord_bucket.append(o)
+            coord_bucket.append(order)
 
     clusters: List[Cluster] = []
 
@@ -96,7 +96,7 @@ def build_clusters(
         clusters.append(Cluster(key=f"pickup_id:{pid}", orders=_cap(group_sorted, policy.max_cluster_candidates)))
 
     # 2) Coordinate-based fallback clusters (for orders without pickup_id)
-    # We bucket by rounded coords to avoid making a separate cluster for every tiny coordinate variation.
+    # We bucket by rounded coordinates to avoid making a separate cluster for every tiny coordinate variation.
     coord_clusters = _bucket_by_pickup_coord(coord_bucket)
 
     for key, group in coord_clusters.items():
@@ -136,10 +136,10 @@ def _bucket_by_pickup_coord(orders: Sequence[Order], precision: int = 4) -> Dict
     Adjust precision as needed.
     """
     buckets: Dict[str, List[Order]] = {}
-    for o in orders:
-        lat, lon = o.pickup
+    for order in orders:
+        lat, lon = order.pickup
         key = f"{round(lat, precision)}:{round(lon, precision)}"
-        buckets.setdefault(key, []).append(o)
+        buckets.setdefault(key, []).append(order)
     return buckets
 
 
@@ -166,11 +166,11 @@ def _merge_near_pickup_clusters(
 
     # Build representative pickups
     reps: List[LatLon] = []
-    for c in clusters:
-        if not c.orders:
+    for cluster in clusters:
+        if not cluster.orders:
             reps.append((0.0, 0.0))
         else:
-            reps.append(c.orders[0].pickup)
+            reps.append(cluster.orders[0].pickup)
 
     durations = pickup_time_matrix_provider(reps)
 
@@ -203,9 +203,9 @@ def _merge_near_pickup_clusters(
 
     # Group by root
     merged: Dict[int, List[Order]] = {}
-    for idx, c in enumerate(clusters):
-        r = find(idx)
-        merged.setdefault(r, []).extend(c.orders)
+    for idx, cluster in enumerate(clusters):
+        root = find(idx)
+        merged.setdefault(root, []).extend(cluster.orders)
 
     # Build output clusters, capped
     out: List[Cluster] = []

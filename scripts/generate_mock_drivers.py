@@ -11,8 +11,8 @@ def generate_mock_drivers(filename="mock_drivers_100.csv", count=100):
         writer = csv.writer(file)
         writer.writerow(["driver_id", "lat", "lon", "status", "max_capacity"])
         
-        for i in range(count):
-            driver_id = f"DRV-{str(i+1).zfill(3)}"
+        for driver_index in range(count):
+            driver_id = f"DRV-{str(driver_index+1).zfill(3)}"
             
             # Scatter drivers randomly around the city center (roughly +/- 10km)
             lat = base_lat + (random.random() - 0.5) * 0.15

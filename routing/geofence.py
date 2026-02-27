@@ -82,7 +82,7 @@ def geofence_candidates(
         batch = riders[start:  start+batch_size] #get a batch of riders
 
         #build destinations in the same order as the batch
-        destinations = [(r.lat, r.lon) for r in batch] #list of (lat, lon) for OSRM table
+        destinations = [(rider.lat, rider.lon) for rider in batch] #list of (lat, lon) for OSRM table
 
         #one osrm call to get pickup -> each rider distance/duration
         matrix = osrm.compute_table(sources=[pickup], destinations=destinations) #returns dict with 'distances' and 'durations' lists
@@ -91,9 +91,9 @@ def geofence_candidates(
         distances = matrix["distances"] #list of distances from pickup to each rider
 
         #apply geofence thresholds and build candidates
-        for i , rider in enumerate(batch):
-            duration  =durations[i] if i < len(durations) else None 
-            distance = distances[i] if i < len(distances) else None 
+        for index , rider in enumerate(batch):
+            duration  = durations[index] if index < len(durations) else None 
+            distance = distances[index] if index < len(distances) else None 
 
             #fail closed : if osrm cannot route (duration/distance is None), we treat as ineligible
             if duration is None or distance is None:
@@ -125,9 +125,9 @@ def geofence_candidates(
             )
         # sort by the fastest/shortest first (OSRM already gives us duration/distance, so we can sort candidates by pickup_duration_s)
         candidates.sort(
-            key=lambda c:
-              (c.pickup_duration_s, 
-               c.pickup_distance_m, #primary sort by duration, secondary by distance
+            key=lambda candidate:
+              (candidate.pickup_duration_s, 
+               candidate.pickup_distance_m, #primary sort by duration, secondary by distance
               )
         )
         return candidates

@@ -15,13 +15,13 @@ def generate_mock_orders(num_orders=1000, num_merchants=30, output_file="raw_ord
     
     # 1. Generate fixed merchants (pickups) to force batching opportunities
     merchants = []
-    for i in range(num_merchants):
+    for merchant_index in range(num_merchants):
         # Merchants placed within a ~5km radius (roughly 0.05 degrees)
         lat = CENTER_LAT + np.random.uniform(-0.05, 0.05)
         lon = CENTER_LON + np.random.uniform(-0.05, 0.05)
         merchants.append({
             "id": f"m_{str(uuid.uuid4())[:8]}",
-            "name": f"Restaurant {i+1}",
+            "name": f"Restaurant {merchant_index+1}",
             "lat": lat,
             "lon": lon
         })
@@ -30,7 +30,7 @@ def generate_mock_orders(num_orders=1000, num_merchants=30, output_file="raw_ord
     now = datetime.now(timezone.utc)
     
     # 2. Generate Orders
-    for i in range(num_orders):
+    for order_index in range(num_orders):
         # Pick a random merchant for this order
         merchant = np.random.choice(merchants)
         
@@ -39,7 +39,7 @@ def generate_mock_orders(num_orders=1000, num_merchants=30, output_file="raw_ord
         dropoff_lon = merchant["lon"] + np.random.uniform(-0.08, 0.08)
         
         data.append({
-            "order_id": f"o_{str(i+1).zfill(6)}",
+            "order_id": f"o_{str(order_index+1).zfill(6)}",
             "created_at": (now - timedelta(minutes=np.random.randint(0, 60))).isoformat(),
             "customer_id": f"c_{np.random.randint(1000, 9999)}",
             "merchant_id": merchant["id"],

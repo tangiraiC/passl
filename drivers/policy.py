@@ -57,6 +57,6 @@ def default_driver_policy() -> DriverPolicy:
     """
     Convenience factory for the default policy.
     """
-    p = DriverPolicy()
-    p.validate()
-    return p
+    policy = DriverPolicy()
+    policy.validate()
+    return policy

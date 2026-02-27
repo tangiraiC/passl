@@ -2,7 +2,7 @@
 Purpose: Domain models for the Orders capability.
 What it does:
 - Defines core data structures:
-- Order (id, pickup coords, dropoff coords, pickup_id, timestamps, status)
+- Order (id, pickup coordinates, dropoff coordinates, pickup_id, timestamps, status)
 - Job (job_id, job_type SINGLE/PAIR/TRIPLE, order_ids, stop_sequence, metrics)
 - Stop (type PICKUP/DROPOFF, order_id, lat/lon)
 

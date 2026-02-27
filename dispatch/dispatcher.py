@@ -42,7 +42,7 @@ class Dispatcher:
                 continue
                 
             # Log the start of the wave
-            wave_driver_ids = [d.id for d in wave_drivers]
+            wave_driver_ids = [driver.id for driver in wave_drivers]
             print(f"Broadcasting Job {job.id} to Wave {wave_index + 1} ({len(wave_drivers)} drivers)...")
             
             # 1. Update active state so drivers see the offer in their app
@@ -90,7 +90,7 @@ class Dispatcher:
             # 3. Send Silent Push notifications to everyone else in the active wave 
             #    who might still have the offer rendering on their screen.
             active_wave_driver_ids = self.db_lock_manager.get_active_offer_drivers(job_id)
-            other_drivers = [d_id for d_id in active_wave_driver_ids if d_id != driver_id]
+            other_drivers = [other_driver_id for other_driver_id in active_wave_driver_ids if other_driver_id != driver_id]
             
             if self.push_service:
                 self.push_service.revoke_offer(other_drivers, job_id)

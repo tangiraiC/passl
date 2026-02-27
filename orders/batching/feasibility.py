@@ -52,27 +52,27 @@ def evaluate_bundle_feasibility(
 
     # Build stop list: 2 stops per order (pickup, dropoff)
     stops: List[Stop] = []
-    for o in orders:
-        stops.append(Stop(stop_type=StopType.PICKUP, order_id=o.id, coord=o.pickup, pickup_id=o.pickup_id))
-        stops.append(Stop(stop_type=StopType.DROPOFF, order_id=o.id, coord=o.dropoff, pickup_id=o.pickup_id))
+    for order in orders:
+        stops.append(Stop(stop_type=StopType.PICKUP, order_id=order.id, coord=order.pickup, pickup_id=order.pickup_id))
+        stops.append(Stop(stop_type=StopType.DROPOFF, order_id=order.id, coord=order.dropoff, pickup_id=order.pickup_id))
 
     # Map order_id -> indices of its pickup/dropoff stop in `stops`
     pickup_index: Dict[str, int] = {}
     dropoff_index: Dict[str, int] = {}
-    for idx, s in enumerate(stops):
-        if s.stop_type == StopType.PICKUP:
-            pickup_index[s.order_id] = idx
+    for idx, stop in enumerate(stops):
+        if stop.stop_type == StopType.PICKUP:
+            pickup_index[stop.order_id] = idx
         else:
-            dropoff_index[s.order_id] = idx
+            dropoff_index[stop.order_id] = idx
 
     # Precompute OSRM durations between all stops
-    coords = [s.coord for s in stops]
-    durations = time_matrix_provider(coords)
+    coordinates = [stop.coord for stop in stops]
+    durations = time_matrix_provider(coordinates)
 
-    if not durations or len(durations) != len(coords):
+    if not durations or len(durations) != len(coordinates):
         return FeasibilityResult(False, [], float("inf"), reason="invalid OSRM matrix (row count)")
     for row in durations:
-        if len(row) != len(coords):
+        if len(row) != len(coordinates):
             return FeasibilityResult(False, [], float("inf"), reason="invalid OSRM matrix (col count)")
 
     # Enumerate valid sequences of stop indices with precedence constraints
@@ -111,24 +111,24 @@ def best_single_time_sum_seconds(
     if not orders:
         return 0.0
 
-    # We only need pickup and dropoff coords for each order.
+    # We only need pickup and dropoff coordinates for each order.
     # Build a small matrix over unique points to keep it efficient:
     # points = [P1, D1, P2, D2, ...]
     points: List[LatLon] = []
     idx_p: List[int] = []
     idx_d: List[int] = []
 
-    for o in orders:
+    for order in orders:
         idx_p.append(len(points))
-        points.append(o.pickup)
+        points.append(order.pickup)
         idx_d.append(len(points))
-        points.append(o.dropoff)
+        points.append(order.dropoff)
 
     durations = time_matrix_provider(points)
 
     total = 0.0
-    for p_i, d_i in zip(idx_p, idx_d):
-        total += float(durations[p_i][d_i])
+    for pickup_idx, dropoff_idx in zip(idx_p, idx_d):
+        total += float(durations[pickup_idx][dropoff_idx])
 
     return total
 
@@ -146,9 +146,9 @@ def _respects_precedence(
     Check precedence constraints under the permutation of stop indices.
     """
     pos = {stop_idx: i for i, stop_idx in enumerate(perm)}
-    for order_id, p_idx in pickup_index.items():
-        d_idx = dropoff_index[order_id]
-        if pos[p_idx] > pos[d_idx]:
+    for order_id, pickup_idx in pickup_index.items():
+        dropoff_idx = dropoff_index[order_id]
+        if pos[pickup_idx] > pos[dropoff_idx]:
             return False
     return True
 
@@ -185,20 +185,20 @@ def evaluate_insertion(
     explored = 0
 
     all_stops = list(existing_stops) + [new_p_stop, new_d_stop]
-    unique_coords_map = {}
-    coords = []
-    for s in all_stops:
-        if s.coord not in unique_coords_map:
-            unique_coords_map[s.coord] = len(coords)
-            coords.append(s.coord)
+    unique_coordinates_map = {}
+    coordinates = []
+    for stop in all_stops:
+        if stop.coord not in unique_coordinates_map:
+            unique_coordinates_map[stop.coord] = len(coordinates)
+            coordinates.append(stop.coord)
 
-    durations = time_matrix_provider(coords)
+    durations = time_matrix_provider(coordinates)
 
     def sequence_time(seq: List[Stop]) -> float:
         total = 0.0
         for a, b in zip(seq[:-1], seq[1:]):
-            a_idx = unique_coords_map[a.coord]
-            b_idx = unique_coords_map[b.coord]
+            a_idx = unique_coordinates_map[a.coord]
+            b_idx = unique_coordinates_map[b.coord]
             total += float(durations[a_idx][b_idx])
         return total
 

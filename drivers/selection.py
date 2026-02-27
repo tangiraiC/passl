@@ -56,11 +56,11 @@ def build_driver_waves(
     # --- OSRM EXACT ROUTING APPROACH ---
     if time_matrix_provider:
         # Pre-fetch all locations in one giant bulk request to prevent NHTTP calls
-        all_coords = [pickup_location] + [d.location for d in eligible]
+        all_coordinates = [pickup_location] + [driver.location for driver in eligible]
         if hasattr(time_matrix_provider, "prefetch"):
-            time_matrix_provider.prefetch(all_coords)
+            time_matrix_provider.prefetch(all_coordinates)
             
-        times_matrix = time_matrix_provider(all_coords) # Returns N x N array
+        times_matrix = time_matrix_provider(all_coordinates) # Returns N x N array
         
         # OSRM Matrix indexing: 0 is the pickup location. 1 through N are the eligible drivers.
         # We only care about time from Driver -> Pickup.
@@ -84,7 +84,7 @@ def build_driver_waves(
 
         # Sort each wave internally by literal route ETA (closest to furthest)
         for wave in waves:
-            wave.sort(key=lambda d: time_matrix_provider([d.location, pickup_location])[0][1])
+            wave.sort(key=lambda driver: time_matrix_provider([driver.location, pickup_location])[0][1])
             
         return waves
         
@@ -118,7 +118,7 @@ def build_driver_waves(
         )
             
     # Cap each wave to a maximum of 5 drivers to prevent over-broadcasting
-    for i in range(len(waves)):
-        waves[i] = waves[i][:5]
+    for index in range(len(waves)):
+        waves[index] = waves[index][:5]
             
     return waves
